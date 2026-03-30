@@ -7,21 +7,39 @@ use x11ui::{
 use std::error::Error;
 
 enum UserMessage {
-    Increment,
-    Decrement,
-    ChangeLabel(String)
+    Clear,
+    Precent,
+    Seven,
+    Eight,
+    Nine,
+    Four,
+    Five,
+    Six,
+    One,
+    Two,
+    Three,
+    Divide,
+    Multiply,
+    Minus,
+    Plus,
+    Equals,
+    Zero,
+    Dot,
+    ChangeLayout
 }
 
 struct Application {
     data: i32,
-    label: String
+    label: String,
+    change: bool
 }
 
 impl Default for Application {
     fn default() -> Self {
         Self {
             data: 10,
-            label: String::new()
+            label: String::from(""),
+            change: false
         }
     }
 }
@@ -29,25 +47,146 @@ impl Default for Application {
 const X: i16 = 100;
 const Y: i16 = 100;
 
+fn example1() -> WidgetContainer<UserMessage> {
+    let mut root_container = WidgetContainer::new(X, Y, 60, 0, ContainerType::Horizontal, 0);
+    root_container.create_button("Root", 10, 5, UserMessage::Precent);
+    root_container.create_button("Root", 10, 5, UserMessage::Precent);
+    root_container.create_button("Root", 10, 5, UserMessage::Precent);
+    let child = root_container.create_container(60, 60, ContainerType::Vertical);
+    child.create_button("Child 1", 5, 5, UserMessage::Seven);
+    child.create_button("Child 1", 5, 5, UserMessage::Seven);
+    child.create_button("Child 1", 5, 5, UserMessage::Seven);
+    root_container.create_button("Root2", 10, 5, UserMessage::Precent);
+    root_container.create_button("Root2", 10, 5, UserMessage::Precent);
+    root_container.create_button("Root2", 10, 5, UserMessage::Precent);
+    root_container 
+}
+
+fn example2() -> WidgetContainer<UserMessage> {
+    let mut root_container = WidgetContainer::new(X, Y, 20, 60, ContainerType::Horizontal, 0);
+    root_container.create_button("Root", 10, 20, UserMessage::Precent);
+    root_container.create_button("Root", 10, 20, UserMessage::Precent);
+    root_container.create_button("Root", 10, 20, UserMessage::Precent);
+    root_container.create_button("Root", 10, 20, UserMessage::Precent);
+        let child1 = root_container.create_container(20, 60, ContainerType::Vertical);
+        child1.create_button("Child1", 10, 20, UserMessage::Six);
+        child1.create_button("Child1", 10, 20, UserMessage::Six);
+        child1.create_button("Child1", 10, 20, UserMessage::Six);
+    let child2 = root_container.create_container(20, 60, ContainerType::Horizontal);
+    child2.create_button("Child2", 10, 20, UserMessage::Six);
+    child2.create_button("Child2", 10, 20, UserMessage::Six);
+    child2.create_button("Child2", 10, 20, UserMessage::Six);
+    root_container
+}
+
+fn calculator(app: &Application) -> WidgetContainer<UserMessage> {
+    let mut root_container = WidgetContainer::new(X, Y, 10, 10, ContainerType::Vertical, 0);
+    root_container.create_button(&app.label.to_string(), 110, 4, UserMessage::Clear);
+    let row1 = root_container.create_container(2, 10, ContainerType::Horizontal);
+    row1.create_button("C", 110, 4, UserMessage::Clear);
+    row1.create_button("%", 50, 4, UserMessage::Precent);
+    row1.create_button("/", 50, 4, UserMessage::Divide);
+    let row2 = root_container.create_container(2, 10, ContainerType::Horizontal);
+    row2.create_button("7", 50, 4, UserMessage::Seven);
+    row2.create_button("8", 50, 4, UserMessage::Eight);
+    row2.create_button("9", 50, 4, UserMessage::Nine);
+    row2.create_button("x", 50, 4, UserMessage::Multiply);
+    let row3 = root_container.create_container(2, 10, ContainerType::Horizontal);
+    row3.create_button("4", 50, 4, UserMessage::Four);
+    row3.create_button("5", 50, 4, UserMessage::Five);
+    row3.create_button("6", 50, 4, UserMessage::Six);
+    row3.create_button("-", 50, 4, UserMessage::Minus);
+    let row4 = root_container.create_container(2, 10, ContainerType::Horizontal);
+    row4.create_button("1", 50, 4, UserMessage::One);
+    row4.create_button("2", 50, 4, UserMessage::Two);
+    row4.create_button( "3", 50, 4, UserMessage::Three);
+    row4.create_button("+", 50, 4, UserMessage::Plus);
+    let row5 = root_container.create_container(2, 10, ContainerType::Horizontal);
+    row5.create_button("0", 110, 4, UserMessage::Zero);
+    row5.create_button(".", 50, 4, UserMessage::Dot);
+    row5.create_button("=", 50, 4, UserMessage::Equals);
+    root_container
+}
+
+fn example3() -> WidgetContainer<UserMessage> {
+    let mut root_container = WidgetContainer::new(X, Y, 10, 10, ContainerType::Vertical, 0);
+    root_container.create_button("Root1", 50, 1, UserMessage::One);
+    root_container.create_button("Root2", 50, 1, UserMessage::One);
+        let child1 = root_container.create_container(2, 10, ContainerType::Horizontal);
+        child1.create_button("Child1", 50, 4, UserMessage::Two);
+        child1.create_button("Child1", 50, 4, UserMessage::Two);
+            let child2 = child1.create_container(2, 10, ContainerType::Horizontal);
+            child2.create_button("Child2", 50, 4, UserMessage::Three);
+            child2.create_button("Child2", 50, 4, UserMessage::Three);
+                let child3 = child2.create_container(2, 10, ContainerType::Vertical);
+                child3.create_button("Child3", 50, 4, UserMessage::Three);
+                child3.create_button("Child3", 50, 4, UserMessage::Three);
+                    let child4 = child3.create_container(2, 10, ContainerType::Horizontal);
+                    child4.create_button("Child4", 50, 4, UserMessage::Three);
+                    child4.create_button("Child4", 50, 4, UserMessage::Three);
+                    child4.create_button("Child4", 50, 4, UserMessage::Three);
+                    child4.create_button("Child4", 50, 4, UserMessage::Three);
+            child2.create_button("Yet another Child2", 5, 4, UserMessage::Three);
+            child2.create_button("And another Child2", 5, 4, UserMessage::Three);
+    root_container.create_button("RootButton", 50, 4, UserMessage::One);
+    root_container.create_button("RootButton2", 50, 4, UserMessage::One);
+    let root_child =  root_container.create_container(2, 1, ContainerType::Horizontal);
+    root_child.create_button("Root child1", 50, 4, UserMessage::One);
+    root_child.create_button("Root child2", 50, 4, UserMessage::One);
+    root_child.create_button("Root child3", 50, 4, UserMessage::One);
+
+    root_container
+}
+
+fn example4(app: &Application) -> WidgetContainer<UserMessage> {
+    let mut root_container = WidgetContainer::new(X, Y, 10, 10, ContainerType::Vertical, 0);
+    let child1 = root_container.create_container(2, 10, ContainerType::Vertical);
+    child1.create_button("Change Layout", 50, 1, UserMessage::ChangeLayout);
+    if app.change {
+        child1.create_button("Button1", 50, 40, UserMessage::One);
+        child1.create_button("Button1", 50, 40, UserMessage::One);
+    }
+    root_container
+}
+
 impl Elm for Application {
     type Message = UserMessage;
     fn view(&self) -> WidgetContainer<Self::Message> {
-        let mut root_container = WidgetContainer::new(X, Y, 100, ContainerType::Vertical);
-        root_container.create_button("+", 50, UserMessage::Increment);
-        root_container.create_button("-", 50, UserMessage::Decrement);
-        root_container.create_button(&self.data.to_string(), 50, UserMessage::ChangeLabel(String::from("Button clicked")));
-        let child1 = root_container.create_container(200, ContainerType::Horizontal);
-        child1.create_button(&self.label, 20, UserMessage::Increment);
-        child1.create_button(&self.label, 20, UserMessage::Increment);
-
-        root_container 
+        example1()
+        //example2()
+        //calculator(self)
+        //example3()
+        //example4(self)
     }
-    fn update(&mut self, message: &Self::Message) {
+    fn update(&mut self, message: &Self::Message) -> bool {
         match message {
-            UserMessage::Increment => self.data += 1,
-            UserMessage::Decrement => self.data -= 1,
-            UserMessage::ChangeLabel(new_label) => self.label = new_label.to_string()
+            UserMessage::Clear => {
+                self.label.clear();
+                return true;
+            }
+            UserMessage::Precent => self.label.push('%'),
+            UserMessage::Seven => self.label.push('7'),
+            UserMessage::Eight => self.label.push('8'),
+            UserMessage::Nine => self.label.push('9'),
+            UserMessage::Four => self.label.push('4'),
+            UserMessage::Five => self.label.push('5'), 
+            UserMessage::Six => self.label.push('6'), 
+            UserMessage::One => self.label.push('1'), 
+            UserMessage::Two => self.label.push('2'), 
+            UserMessage::Three => self.label.push('3'), 
+            UserMessage::Divide => self.label.push('/'), 
+            UserMessage::Multiply => self.label.push('*'), 
+            UserMessage::Minus => self.label.push('-'), 
+            UserMessage::Plus => self.label.push('+'), 
+            UserMessage::Equals => self.label.push('='), 
+            UserMessage::Zero => self.label.push('0'), 
+            UserMessage::Dot => self.label.push('.'), 
+            UserMessage::ChangeLayout => {
+                self.change = !self.change;
+                return true;
+            }
         }
+        return false;
     }
 }
 

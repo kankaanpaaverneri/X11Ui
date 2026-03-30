@@ -32,6 +32,7 @@ pub enum ContainerType {
 }
 
 pub struct Button<Message> {
+    id: usize,
     text: String,
     points: [Point; 5],
     message: Message
@@ -40,9 +41,9 @@ pub struct Button<Message> {
 impl<Message> Button<Message> {
     pub fn is_button_interacted(&self, event_x: i16, event_y: i16) -> bool {
         if event_x >= self.points[0].x &&
-            event_y <= self.points[0].y &&
+            event_y >= self.points[0].y &&
             event_x <= self.points[2].x &&
-            event_y >= self.points[2].y
+            event_y <= self.points[2].y
         {
            return true; 
         }
@@ -63,169 +64,169 @@ impl Label {
 }
 
 pub struct WidgetContainer<Message> {
+    pub widget_count: usize,
     buttons: Vec<Button<Message>>,
     labels: Vec<Label>,
     containers: Vec<WidgetContainer<Message>>,
     x: i16,
     y: i16,
-    widget_spacing: i16,
+    widget_spacing_x: i16,
+    widget_spacing_y: i16,
     container_type: ContainerType
 }
 
 impl<Message> WidgetContainer<Message> {
-    pub fn new(x: i16, y: i16, widget_spacing: u16, container_type: ContainerType) -> Self {
+    pub fn new(
+        x: i16,
+        y: i16,
+        widget_spacing_x: u16,
+        widget_spacing_y: u16,
+        container_type: ContainerType,
+        id: usize,
+    ) -> Self {
         Self {
+            widget_count: id,
             buttons: Vec::new(),
             labels: Vec::new(),
             containers: Vec::new(),
             x,
             y,
-            widget_spacing: widget_spacing as i16,
+            widget_spacing_x: widget_spacing_x as i16,
+            widget_spacing_y: widget_spacing_y as i16,
             container_type,
         }
     }
 
-    fn get_widget_count(&self) -> i16 {
-        (self.buttons.len() + self.labels.len()) as i16
+    fn move_point_horizontal(&self, container: &WidgetContainer<Message>) -> i16 {
+        let mut x = self.x;
+        if let Some(last_container) = container.containers.iter().last() {
+            let new_x = container.move_point_horizontal(last_container);
+            if new_x > x {
+                x = new_x;
+            }
+        }
+        if let Some(last_button) = container.buttons.iter().last() {
+            if last_button.id == container.widget_count {
+                let button_x = last_button.points[2].x + self.widget_spacing_x;
+                if button_x > x {
+                    x = button_x;
+                }
+            }
+        }
+        x 
+    }
+
+    fn move_point_vertical(&self, container: &WidgetContainer<Message>) -> i16 {
+        let mut y = self.y;
+        if let Some(last_container) = container.containers.iter().last() {
+            let new_y = container.move_point_vertical(last_container);
+            if new_y > y {
+                y = new_y;
+            }
+        }
+        if let Some(last_button) = container.buttons.iter().last() {
+            if last_button.id == container.widget_count {
+                let button_y = last_button.points[2].y + self.widget_spacing_y;
+                if button_y > y {
+                    y = button_y;
+                }
+            }
+        }
+        y
     }
 
     pub fn create_container(
         &mut self,
-        widget_spacing: u16,
-        container_type: ContainerType
+        widget_spacing_x: u16,
+        widget_spacing_y: u16,
+        new_container_type: ContainerType
     ) -> &mut WidgetContainer<Message> {
-        let mut new_x = self.x;
-        let mut new_y = self.y;
+        let mut x = self.x;
+        let mut y = self.y;
         if let Some(container) = self.containers.iter().last() {
-            new_x = container.x;
-            new_y = container.y;
-            let mut widget_count = container.get_widget_count();
-            if widget_count == 0 {
-                widget_count = 1;
-            }
             match self.container_type {
-                ContainerType::Vertical => {
-                    new_y += container.widget_spacing * widget_count;
-                }
-                ContainerType::Horizontal => {
-                    new_x += container.widget_spacing * widget_count;
+                ContainerType::Vertical => y = self.move_point_vertical(container),
+                ContainerType::Horizontal => x = self.move_point_horizontal(container)
+            }
+        } 
+        match self.container_type {
+            ContainerType::Vertical => {
+                if let Some(button) = self.buttons.iter().last() {
+                    if button.id == self.widget_count {
+                        y = button.points[2].y + self.widget_spacing_y;
+                    }
                 }
             }
-        } else {
-            let mut widget_count = self.get_widget_count();
-            if widget_count == 0 {
-                widget_count = 1;
-            }
-            match self.container_type {
-                ContainerType::Vertical => {
-                    new_y += widget_count * self.widget_spacing;
-                }
-                ContainerType::Horizontal => {
-                    new_x += widget_count * self.widget_spacing;
+            ContainerType::Horizontal => {
+                if let Some(button) = self.buttons.iter().last() {
+                    if button.id == self.widget_count {
+                        x = button.points[2].x + self.widget_spacing_x;
+                    }
                 }
             }
         }
-        
-        let new_container = WidgetContainer::new(new_x, new_y, widget_spacing, container_type);
-        self.containers.push(new_container);
+        self.widget_count += 1;
+        let mut new_container = WidgetContainer::new(
+            x,
+            y,
+            widget_spacing_x,
+            widget_spacing_y,
+            new_container_type,
+            self.widget_count
+        );
+
+        self.containers.push(new_container); 
         self.containers.iter_mut().last().unwrap()
     }
 
-    pub fn create_button(&mut self, text: &str, padding: u16, message: Message) {
-        let padding: i16 = padding as i16;
-        let width = 7 * text.len() as i16 + padding;
-        let height = width / 2; 
-        let mut x = self.x.clone();
-        let mut y = self.y.clone();
-
-        // Get previous button position on screen
-        if let Some(previous_button) = self.buttons.iter().last() {
-            let prev_button_x = previous_button.points[0].x;
-            let prev_button_y = previous_button.points[0].y;
-            x = prev_button_x;
-            y = prev_button_y;
-
-            match self.container_type {
-                ContainerType::Vertical => {
-                    y += self.widget_spacing;
-                }
-                ContainerType::Horizontal => {
-                    x += self.widget_spacing;
-                }
-            }
-        }
-
-        // Get previous label position on screen
-        if let Some(previous_label) = self.labels.iter().last() {
-            let prev_label_x = previous_label.x;
-            let prev_label_y = previous_label.y;
-            x = prev_label_x;
-            y = prev_label_y;
-
-            match self.container_type {
-                ContainerType::Vertical => {
-                    y += self.widget_spacing;
-                }
-                ContainerType::Horizontal => {
-                    x += self.widget_spacing;
-                }
-            }
-        }
-
-        let points = [
-            Point {x: x, y},
-            Point {x: x + width, y},
-            Point {x: x + width, y: y - height},
-            Point {x, y: y - height},
-            Point {x, y}
-        ];
-        let new_button = Button {
-           text: String::from(text),
-           points, 
-           message
-        };
-        self.buttons.push(new_button);
-    }
-
-    pub fn create_label(&mut self, text: &str) {
-        // Get previous button position on screen
+    pub fn create_button(
+        &mut self,
+        text: &str,
+        padding_x: u16,
+        padding_y: u16,
+        message: Message
+    ) {
+        let padding_x: i16 = padding_x as i16;
+        let padding_y: i16 = padding_y as i16;
+        let width = text.len() as i16 * 8 + padding_x;
+        let height = padding_y * 2 + 16; 
         let mut x = self.x;
         let mut y = self.y;
-        // Get previous button position on screen
+        
+        if let Some(previous_container) = self.containers.iter().last() {
+            match self.container_type {
+                ContainerType::Vertical => y = self.move_point_vertical(previous_container),
+                ContainerType::Horizontal => x = self.move_point_horizontal(previous_container)
+            }
+        }
         if let Some(previous_button) = self.buttons.iter().last() {
-            let prev_button_x = previous_button.points[0].x;
-            let prev_button_y = previous_button.points[0].y;
-            x = prev_button_x;
-            y = prev_button_y;
-
-            match self.container_type {
-                ContainerType::Vertical => {
-                    y += self.widget_spacing;
+            if self.widget_count == previous_button.id {
+                match self.container_type {
+                    ContainerType::Vertical => {
+                        y = previous_button.points[2].y + self.widget_spacing_y;
+                    }
+                    ContainerType::Horizontal => {
+                        x = previous_button.points[2].x + self.widget_spacing_x;
+                    }
                 }
-                ContainerType::Horizontal => {
-                    x += self.widget_spacing;
-                }
-            }
+            } 
         }
 
-        // Get previous label position on screen
-        if let Some(previous_label) = self.labels.iter().last() {
-            let prev_label_x = previous_label.x;
-            let prev_label_y = previous_label.y;
-            x = prev_label_x;
-            y = prev_label_y;
-
-            match self.container_type {
-                ContainerType::Vertical => {
-                    y += self.widget_spacing;
-                }
-                ContainerType::Horizontal => {
-                    x += self.widget_spacing;
-                }
-            }
-        }
-        let new_label = Label::new(text, x, y);
-        self.labels.push(new_label);
+        let points: [Point; 5] = [
+            Point {x, y},
+            Point {x: x + width, y},
+            Point {x: x + width, y: y + height},
+            Point {x, y: y + height},
+            Point {x, y},
+        ];
+        // Update the next button coordinates
+        self.widget_count += 1;
+        self.buttons.push(Button {
+            id: self.widget_count,
+            text: text.to_string(),
+            points,
+            message
+        });
     }
 
     pub fn is_widget_interacted(&self, event_x: i16, event_y: i16) -> Option<&Message> {
@@ -242,13 +243,17 @@ impl<Message> WidgetContainer<Message> {
 
         return None;
     }
+    
+    fn get_widget_count(&self) -> i16 {
+        (self.buttons.len() + self.labels.len()) as i16
+    }
 
 }
 
 pub trait Elm {
     type Message;
     fn view(&self) -> WidgetContainer<Self::Message>;
-    fn update(&mut self, message: &Self::Message);
+    fn update(&mut self, message: &Self::Message) -> bool;
 }
 
 x11rb::atom_manager! {
@@ -263,6 +268,11 @@ pub enum Color {
     Light
 }
 
+struct GraphicalContexts {
+    dark_gc: Gcontext,
+    foreground_light_gc: Gcontext,
+    foreground_dark_gc: Gcontext
+}
 
 pub fn init<Application: Elm>(
     title: &str,
@@ -326,22 +336,36 @@ pub fn init<Application: Elm>(
         screen_number,
         window_id,
     );
+    let pixmap = window.connection.generate_id()?;
     let mut container = application.view();
+    let font_id = window.connection.generate_id()?;
+    window.connection.open_font(font_id, b"fixed")?;
+    let gc_values = GraphicalContexts {
+        dark_gc: new_gc(&window, window.screen_number, font_id, Color::Dark, Color::Dark)?,
+        foreground_light_gc: new_gc(&window, window.screen_number, font_id, Color::Light, Color::Dark)?,
+        foreground_dark_gc: new_gc(&window, window.screen_number, font_id, Color::Dark, Color::Light)?
+    };
     // Main event loop
+
     loop {
         let event = window.connection.wait_for_event()?;
+        let mut redraw = false;
         match event {
             Event::Expose(_) => {
+                redraw = true;
             }
             Event::KeyPress(_) => {
             }
             Event::ButtonPress(event) => {
+                
                 match event.detail {
                     1 => {
+                        redraw = true;
                         if let Some(message) = container.is_widget_interacted(event.event_x, event.event_y) {
-                            application.update(message);
+                            if application.update(message) {
+                                window.connection.clear_area(false, window.window_id, 0, 0, width, height)?;
+                            }
                         }
-                        
                     }
                     3 => {
                         println!("Mouse right click");
@@ -364,29 +388,41 @@ pub fn init<Application: Elm>(
             _ => {}
         }
         // Do updated rendering here
-        container = application.view();
-        draw_widgets(&mut window, &container)?;
-        window.connection.flush()?;
+        if redraw {
+            container = application.view();
+            draw_widgets(&mut window, &gc_values, &container)?;
+            window.connection.flush()?;
+        }
     }
+    window.connection.free_gc(gc_values.dark_gc)?;
+    window.connection.free_gc(gc_values.foreground_light_gc)?;
+    window.connection.free_gc(gc_values.foreground_dark_gc)?;
+    window.connection.close_font(font_id)?;
 }
+
 
 fn draw_widgets<C: Connection, Message>(
     window: &mut XWindow<C>,
+    gc_values: &GraphicalContexts,
     parent_container: &WidgetContainer<Message>
 ) -> Result<(), Box<dyn Error>> {
     for container in &parent_container.containers {
-        draw_widgets(window, container)?;
+        draw_widgets(window, gc_values, container)?;
     }
     let buttons = &parent_container.buttons;
     
     for button in buttons {
-        let gc = new_gc(window, window.screen_number, Color::Dark, Color::Dark)?;
-        window.connection.poly_line(CoordMode::ORIGIN, window.window_id, gc, &button.points)?;
-        window.connection.fill_poly(window.window_id, gc, PolyShape::CONVEX, CoordMode::ORIGIN, &button.points)?;
-        let gc = new_gc(window, window.screen_number, Color::Light, Color::Dark)?;
+        window.connection.poly_line(CoordMode::ORIGIN, window.window_id, gc_values.dark_gc, &button.points)?;
+        window.connection.fill_poly(
+            window.window_id,
+            gc_values.dark_gc,
+            PolyShape::CONVEX,
+            CoordMode::ORIGIN,
+            &button.points
+        )?;
         window.connection.image_text8(
             window.window_id,
-            gc,
+            gc_values.foreground_light_gc,
             button.points[0].x + (button.points[2].x - button.points[0].x) / 2 - button.text.len() as i16 * 3,
             button.points[0].y - (button.points[0].y - button.points[2].y) / 2 + 3,  
             button.text.as_bytes()
@@ -395,9 +431,13 @@ fn draw_widgets<C: Connection, Message>(
     let labels = &parent_container.labels;
 
     for label in labels {
-        let gc = new_gc(window, window.screen_number, Color::Dark, Color::Light)?;
-        window.connection.image_text8(window.window_id, gc, label.x, label.y, label.text.as_bytes())?;
-
+        window.connection.image_text8(
+            window.window_id,
+            gc_values.foreground_light_gc,
+            label.x + parent_container.widget_spacing_x,
+            label.y - parent_container.widget_spacing_y,
+            label.text.as_bytes()
+        )?;
     }
     Ok(())
 }
@@ -406,6 +446,7 @@ fn draw_widgets<C: Connection, Message>(
 pub fn new_gc<C: Connection>(
     window: &XWindow<C>,
     screen_number: usize,
+    font_id: Font,
     foreground: Color,
     background: Color
 ) -> Result<Gcontext, Box<dyn Error>> {
@@ -419,13 +460,10 @@ pub fn new_gc<C: Connection>(
     };
 
     let gc_id = window.connection.generate_id()?;
-    let font_id = window.connection.generate_id()?;
-    window.connection.open_font(font_id, b"fixed")?;
     let gc_values = CreateGCAux::new()
         .foreground(foreground_color)
         .background(background_color)
         .font(font_id);
     window.connection.create_gc(gc_id, window.window_id, &gc_values)?;
-    window.connection.close_font(font_id)?;
     Ok(gc_id)
 }
