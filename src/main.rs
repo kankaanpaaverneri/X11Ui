@@ -25,7 +25,9 @@ enum UserMessage {
     Equals,
     Zero,
     Dot,
-    ChangeLayout
+    ChangeLayout,
+    ChangeText(String),
+    AddK,
 }
 
 struct Application {
@@ -48,17 +50,21 @@ const X: i16 = 100;
 const Y: i16 = 100;
 
 fn example1() -> WidgetContainer<UserMessage> {
-    let mut root_container = WidgetContainer::new(X, Y, 60, 0, ContainerType::Horizontal, 0);
+    let mut root_container = WidgetContainer::new(X, Y, 60, 10, ContainerType::Horizontal, 0);
     root_container.create_button("Root", 10, 5, UserMessage::Precent);
     root_container.create_button("Root", 10, 5, UserMessage::Precent);
     root_container.create_button("Root", 10, 5, UserMessage::Precent);
     let child = root_container.create_container(60, 60, ContainerType::Vertical);
     child.create_button("Child 1", 5, 5, UserMessage::Seven);
     child.create_button("Child 1", 5, 5, UserMessage::Seven);
+    child.create_label("Child label");
     child.create_button("Child 1", 5, 5, UserMessage::Seven);
     root_container.create_button("Root2", 10, 5, UserMessage::Precent);
     root_container.create_button("Root2", 10, 5, UserMessage::Precent);
     root_container.create_button("Root2", 10, 5, UserMessage::Precent);
+    root_container.create_label("HelloLabel1");
+    root_container.create_label("HelloLabel2");
+    root_container.create_label("HelloLabel3");
     root_container 
 }
 
@@ -81,7 +87,7 @@ fn example2() -> WidgetContainer<UserMessage> {
 
 fn calculator(app: &Application) -> WidgetContainer<UserMessage> {
     let mut root_container = WidgetContainer::new(X, Y, 10, 10, ContainerType::Vertical, 0);
-    root_container.create_button(&app.label.to_string(), 110, 4, UserMessage::Clear);
+    root_container.create_label(&app.label);
     let row1 = root_container.create_container(2, 10, ContainerType::Horizontal);
     row1.create_button("C", 110, 4, UserMessage::Clear);
     row1.create_button("%", 50, 4, UserMessage::Precent);
@@ -119,18 +125,22 @@ fn example3() -> WidgetContainer<UserMessage> {
             child2.create_button("Child2", 50, 4, UserMessage::Three);
             child2.create_button("Child2", 50, 4, UserMessage::Three);
                 let child3 = child2.create_container(2, 10, ContainerType::Vertical);
-                child3.create_button("Child3", 50, 4, UserMessage::Three);
-                child3.create_button("Child3", 50, 4, UserMessage::Three);
-                    let child4 = child3.create_container(2, 10, ContainerType::Horizontal);
+                child3.create_label("Child3");
+                child3.create_label("Child3");
+                child3.create_label("Child3");
+                    let child4 = child3.create_container(2, 10, ContainerType::Vertical);
                     child4.create_button("Child4", 50, 4, UserMessage::Three);
-                    child4.create_button("Child4", 50, 4, UserMessage::Three);
-                    child4.create_button("Child4", 50, 4, UserMessage::Three);
+                    child4.create_label("Child4");
+                    child4.create_label("Child4");
                     child4.create_button("Child4", 50, 4, UserMessage::Three);
             child2.create_button("Yet another Child2", 5, 4, UserMessage::Three);
+            child2.create_label("Yet another label");
             child2.create_button("And another Child2", 5, 4, UserMessage::Three);
+    root_container.create_label("RootLabel");
     root_container.create_button("RootButton", 50, 4, UserMessage::One);
+    root_container.create_label("RootLabel2");
     root_container.create_button("RootButton2", 50, 4, UserMessage::One);
-    let root_child =  root_container.create_container(2, 1, ContainerType::Horizontal);
+    let root_child =  root_container.create_container(2, 20, ContainerType::Vertical);
     root_child.create_button("Root child1", 50, 4, UserMessage::One);
     root_child.create_button("Root child2", 50, 4, UserMessage::One);
     root_child.create_button("Root child3", 50, 4, UserMessage::One);
@@ -152,10 +162,10 @@ fn example4(app: &Application) -> WidgetContainer<UserMessage> {
 impl Elm for Application {
     type Message = UserMessage;
     fn view(&self) -> WidgetContainer<Self::Message> {
-        example1()
+        //example1()
         //example2()
         //calculator(self)
-        //example3()
+        example3()
         //example4(self)
     }
     fn update(&mut self, message: &Self::Message) -> bool {
@@ -184,7 +194,17 @@ impl Elm for Application {
             UserMessage::ChangeLayout => {
                 self.change = !self.change;
                 return true;
+            },
+            UserMessage::ChangeText(new_text) => {
+
+                self.label = new_text.to_string();
+                return true;
             }
+            UserMessage::AddK => {
+                self.label.push('K');
+                return true;
+            }
+
         }
         return false;
     }
