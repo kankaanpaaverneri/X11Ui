@@ -50,7 +50,7 @@ const X: i16 = 100;
 const Y: i16 = 100;
 
 fn example1() -> WidgetContainer<UserMessage> {
-    let mut root_container = WidgetContainer::new(X, Y, 60, 10, ContainerType::Horizontal, 0);
+    let mut root_container = WidgetContainer::new(X, Y, 60, 10, ContainerType::Horizontal);
     root_container.create_button("Root", 10, 5, UserMessage::Precent);
     root_container.create_button("Root", 10, 5, UserMessage::Precent);
     root_container.create_button("Root", 10, 5, UserMessage::Precent);
@@ -69,7 +69,7 @@ fn example1() -> WidgetContainer<UserMessage> {
 }
 
 fn example2() -> WidgetContainer<UserMessage> {
-    let mut root_container = WidgetContainer::new(X, Y, 20, 60, ContainerType::Horizontal, 0);
+    let mut root_container = WidgetContainer::new(X, Y, 20, 60, ContainerType::Horizontal);
     root_container.create_button("Root", 10, 20, UserMessage::Precent);
     root_container.create_button("Root", 10, 20, UserMessage::Precent);
     root_container.create_button("Root", 10, 20, UserMessage::Precent);
@@ -86,7 +86,7 @@ fn example2() -> WidgetContainer<UserMessage> {
 }
 
 fn calculator(app: &Application) -> WidgetContainer<UserMessage> {
-    let mut root_container = WidgetContainer::new(X, Y, 10, 10, ContainerType::Vertical, 0);
+    let mut root_container = WidgetContainer::new(X, Y, 10, 10, ContainerType::Vertical);
     root_container.create_label(&app.label);
     let row1 = root_container.create_container(2, 10, ContainerType::Horizontal);
     row1.create_button("C", 110, 4, UserMessage::Clear);
@@ -115,23 +115,27 @@ fn calculator(app: &Application) -> WidgetContainer<UserMessage> {
 }
 
 fn example3() -> WidgetContainer<UserMessage> {
-    let mut root_container = WidgetContainer::new(X, Y, 10, 10, ContainerType::Vertical, 0);
+    let mut root_container = WidgetContainer::new(X, Y, 10, 10, ContainerType::Vertical);
     root_container.create_button("Root1", 50, 1, UserMessage::One);
     root_container.create_button("Root2", 50, 1, UserMessage::One);
-        let child1 = root_container.create_container(2, 10, ContainerType::Horizontal);
+    let child0 = root_container.create_container(2, 20, ContainerType::Vertical);
+        let child1 = root_container.create_container(2, 20, ContainerType::Vertical);
         child1.create_button("Child1", 50, 4, UserMessage::Two);
         child1.create_button("Child1", 50, 4, UserMessage::Two);
-            let child2 = child1.create_container(2, 10, ContainerType::Horizontal);
+            let child2 = child1.create_container(5, 10, ContainerType::Horizontal);
             child2.create_button("Child2", 50, 4, UserMessage::Three);
             child2.create_button("Child2", 50, 4, UserMessage::Three);
                 let child3 = child2.create_container(2, 10, ContainerType::Vertical);
+                child3.create_button("Child3", 50, 4, UserMessage::Three);
+                child3.create_button("Child3", 50, 4, UserMessage::Three);
+                child3.create_button("Child3", 50, 4, UserMessage::Three);
                 child3.create_label("Child3");
                 child3.create_label("Child3");
                 child3.create_label("Child3");
                     let child4 = child3.create_container(2, 10, ContainerType::Vertical);
-                    child4.create_button("Child4", 50, 4, UserMessage::Three);
+                    child4.create_button("Child4 Is larger", 50, 4, UserMessage::Three);
                     child4.create_label("Child4");
-                    child4.create_label("Child4");
+                    child4.create_label("Child4 is this the largest label in child4 container");
                     child4.create_button("Child4", 50, 4, UserMessage::Three);
             child2.create_button("Yet another Child2", 5, 4, UserMessage::Three);
             child2.create_label("Yet another label");
@@ -144,12 +148,11 @@ fn example3() -> WidgetContainer<UserMessage> {
     root_child.create_button("Root child1", 50, 4, UserMessage::One);
     root_child.create_button("Root child2", 50, 4, UserMessage::One);
     root_child.create_button("Root child3", 50, 4, UserMessage::One);
-
     root_container
 }
 
 fn example4(app: &Application) -> WidgetContainer<UserMessage> {
-    let mut root_container = WidgetContainer::new(X, Y, 10, 10, ContainerType::Vertical, 0);
+    let mut root_container = WidgetContainer::new(X, Y, 10, 10, ContainerType::Vertical);
     let child1 = root_container.create_container(2, 10, ContainerType::Vertical);
     child1.create_button("Change Layout", 50, 1, UserMessage::ChangeLayout);
     if app.change {

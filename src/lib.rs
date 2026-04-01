@@ -32,7 +32,6 @@ pub enum ContainerType {
 }
 
 pub struct Button<Message> {
-    id: usize,
     text: String,
     points: [Point; 5],
     message: Message
@@ -57,26 +56,23 @@ pub struct Label {
     begin_y: i16,
     end_x: i16,
     end_y: i16,
-    id: usize,
 }
 
 impl Label {
-    pub fn new(text: &str, x: i16, y: i16, id: usize) -> Self {
-        let length = text.len() as i16;
+    pub fn new(text: &str, x: i16, y: i16) -> Self {
+        let length = text.len() as i16 * 6;
         let height = 15;
         Self {
             text: String::from(text),
             begin_x: x,
             begin_y: y,
-            end_x: x + length + 100,
-            end_y: y + height,
-            id
+            end_x: x + length,
+            end_y: y + height
         }
     }
 }
 
 pub struct WidgetContainer<Message> {
-    pub widget_count: usize,
     buttons: Vec<Button<Message>>,
     labels: Vec<Label>,
     containers: Vec<WidgetContainer<Message>>,
@@ -94,10 +90,8 @@ impl<Message> WidgetContainer<Message> {
         widget_spacing_x: u16,
         widget_spacing_y: u16,
         container_type: ContainerType,
-        id: usize,
     ) -> Self {
         Self {
-            widget_count: id,
             buttons: Vec::new(),
             labels: Vec::new(),
             containers: Vec::new(),
@@ -118,22 +112,20 @@ impl<Message> WidgetContainer<Message> {
     ) -> &mut WidgetContainer<Message> {
         let mut x = self.x;
         let mut y = self.y;
-        if let Some(container) = self.containers.iter().last() {
+        for container in &self.containers {
             match self.container_type {
                 ContainerType::Vertical => y = self.move_point_vertical(container),
                 ContainerType::Horizontal => x = self.move_point_horizontal(container)
             }
         } 
-        (x, y) = self.get_last_button_endpoint(x, y);
-        (x, y) = self.get_last_label_endpoint(x, y);
-        self.widget_count += 1;
+        (x, y) = self.get_button_endpoint(x, y);
+        (x, y) = self.get_label_endpoint(x, y);
         let mut new_container = WidgetContainer::new(
             x,
             y,
             widget_spacing_x,
             widget_spacing_y,
             new_container_type,
-            self.widget_count
         );
 
         self.containers.push(new_container); 
@@ -154,14 +146,14 @@ impl<Message> WidgetContainer<Message> {
         let mut x = self.x;
         let mut y = self.y;
         
-        if let Some(previous_container) = self.containers.iter().last() {
+        for container in &self.containers {
             match self.container_type {
-                ContainerType::Vertical => y = self.move_point_vertical(previous_container),
-                ContainerType::Horizontal => x = self.move_point_horizontal(previous_container)
+                ContainerType::Vertical => y = self.move_point_vertical(container),
+                ContainerType::Horizontal => x = self.move_point_horizontal(container)
             }
         }
-        (x, y) = self.get_last_button_endpoint(x, y);
-        (x, y) = self.get_last_label_endpoint(x, y);
+        (x, y) = self.get_button_endpoint(x, y);
+        (x, y) = self.get_label_endpoint(x, y);
 
         let points: [Point; 5] = [
             Point {x, y},
@@ -171,9 +163,7 @@ impl<Message> WidgetContainer<Message> {
             Point {x, y},
         ];
         // Update the next button coordinates
-        self.widget_count += 1;
         self.buttons.push(Button {
-            id: self.widget_count,
             text: text.to_string(),
             points,
             message
@@ -184,16 +174,15 @@ impl<Message> WidgetContainer<Message> {
         let mut x = self.x;
         let mut y = self.y;
 
-        if let Some(previous_container) = self.containers.iter().last() {
+        for container in &self.containers {
             match self.container_type {
-                ContainerType::Vertical => y = self.move_point_vertical(previous_container),
-                ContainerType::Horizontal => x = self.move_point_horizontal(previous_container)
+                ContainerType::Vertical => y = self.move_point_vertical(container),
+                ContainerType::Horizontal => x = self.move_point_horizontal(container)
             }
         }
-        (x, y) = self.get_last_button_endpoint(x, y);
-        (x, y) = self.get_last_label_endpoint(x, y);
-        self.widget_count += 1;
-        self.labels.push(Label::new(text, x, y, self.widget_count));
+        (x, y) = self.get_button_endpoint(x, y);
+        (x, y) = self.get_label_endpoint(x, y);
+        self.labels.push(Label::new(text, x, y));
     }
 
     pub fn is_widget_interacted(&self, event_x: i16, event_y: i16) -> Option<&Message> {
@@ -213,26 +202,22 @@ impl<Message> WidgetContainer<Message> {
 
     fn move_point_horizontal(&self, container: &WidgetContainer<Message>) -> i16 {
         let mut x = self.x;
-        if let Some(last_container) = container.containers.iter().last() {
-            let new_x = container.move_point_horizontal(last_container);
+        for child_container in &container.containers {
+            let new_x = container.move_point_horizontal(child_container);
             if new_x > x {
                 x = new_x;
             }
         }
-        if let Some(last_button) = container.buttons.iter().last() {
-            if last_button.id == container.widget_count {
-                let button_x = last_button.points[2].x + self.widget_spacing_x;
-                if button_x > x {
-                    x = button_x;
-                }
+        for button in &container.buttons {
+            let button_x = button.points[2].x + self.widget_spacing_x;
+            if button_x > x {
+                x = button_x;
             }
         }
-        if let Some(last_label) = container.labels.iter().last() {
-            if last_label.id == container.widget_count {
-                let label_x = last_label.end_x + self.widget_spacing_x;
-                if label_x > x {
-                    x = label_x;
-                }
+        for label in &container.labels {
+            let label_x = label.end_x + self.widget_spacing_x;
+            if label_x > x {
+                x = label_x;
             }
         }
         x 
@@ -240,59 +225,64 @@ impl<Message> WidgetContainer<Message> {
 
     fn move_point_vertical(&self, container: &WidgetContainer<Message>) -> i16 {
         let mut y = self.y;
-        if let Some(last_container) = container.containers.iter().last() {
-            let new_y = container.move_point_vertical(last_container);
+        for child_container in &container.containers {
+            let new_y = container.move_point_vertical(child_container);
             if new_y > y {
                 y = new_y;
             }
         }
-        if let Some(last_button) = container.buttons.iter().last() {
-            if last_button.id == container.widget_count {
-                let button_y = last_button.points[2].y + self.widget_spacing_y;
-                if button_y > y {
-                    y = button_y;
-                }
+        for button in &container.buttons {
+            let button_y = button.points[2].y + self.widget_spacing_y;
+            if button_y > y {
+                y = button_y;
             }
         }
-        if let Some(last_label) = container.labels.iter().last() {
-            if last_label.id == container.widget_count {
-                let label_y = last_label.end_y + self.widget_spacing_y;
-                if label_y > y {
-                    y = label_y;
-                }
+        for label in &container.labels {
+            let label_y = label.end_y + self.widget_spacing_y;
+            if label_y > y {
+                y = label_y;
             }
         }
         y
     }
 
-    fn get_last_button_endpoint(&self, mut x: i16, mut y: i16) -> (i16, i16) {
-        if let Some(previous_button) = self.buttons.iter().last() {
-            if self.widget_count == previous_button.id {
-                match self.container_type {
-                    ContainerType::Vertical => {
-                        y = previous_button.points[2].y + self.widget_spacing_y;
+    fn get_button_endpoint(&self, mut x: i16, mut y: i16) -> (i16, i16) {
+        for button in &self.buttons {
+            match self.container_type {
+                ContainerType::Vertical => {
+                    let new_y = button.points[2].y + self.widget_spacing_y;
+                    if new_y > y {
+                        y = new_y;
                     }
-                    ContainerType::Horizontal => {
-                        x = previous_button.points[2].x + self.widget_spacing_x;
+                    
+                }
+                ContainerType::Horizontal => {
+                    let new_x = button.points[2].x + self.widget_spacing_x;
+                    if new_x > x {
+                        x = new_x;
                     }
                 }
-            } 
+            }
         }
         (x, y)
     }
 
-    fn get_last_label_endpoint(&self, mut x: i16, mut y: i16) -> (i16, i16) {
-        if let Some(previous_label) = self.labels.iter().last() {
-            if self.widget_count == previous_label.id {
-                match self.container_type {
-                    ContainerType::Vertical => {
-                        y = previous_label.end_y + self.widget_spacing_y;
-                    }
-                    ContainerType::Horizontal => {
-                        x = previous_label.end_x + self.widget_spacing_x;
+    fn get_label_endpoint(&self, mut x: i16, mut y: i16) -> (i16, i16) {
+        for label in &self.labels {
+            match self.container_type {
+                ContainerType::Vertical => {
+                    let new_y = label.end_y + self.widget_spacing_y;
+                    if new_y > y {
+                        y = new_y;
                     }
                 }
-            } 
+                ContainerType::Horizontal => {
+                    let new_x = label.end_x + self.widget_spacing_x;
+                    if new_x > x {
+                        x = new_x;
+                    }
+                }
+            }
         }
         (x, y)
     }
