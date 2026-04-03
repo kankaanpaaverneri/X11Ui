@@ -32,9 +32,11 @@ pub enum ContainerType {
 }
 
 pub struct Button<Message> {
+    id: u128,
     text: String,
     points: [Point; 5],
-    message: Message
+    message: Message,
+    hover: bool
 }
 
 impl<Message> Button<Message> {
@@ -48,9 +50,14 @@ impl<Message> Button<Message> {
         }
         return false;
     }
+
+    pub fn hover(&mut self) {
+        self.hover = true;
+    }
 }
 
 pub struct Label {
+    id: u128,
     text: String,
     begin_x: i16,
     begin_y: i16,
@@ -59,10 +66,12 @@ pub struct Label {
 }
 
 impl Label {
-    pub fn new(text: &str, x: i16, y: i16) -> Self {
+    pub fn new(id: u128, text: &str, x: i16, y: i16) -> Self {
         let length = text.len() as i16 * 6;
         let height = 15;
+        
         Self {
+            id, 
             text: String::from(text),
             begin_x: x,
             begin_y: y,
@@ -73,6 +82,8 @@ impl Label {
 }
 
 pub struct WidgetContainer<Message> {
+    id: u128,
+    widget_count: usize,
     buttons: Vec<Button<Message>>,
     labels: Vec<Label>,
     containers: Vec<WidgetContainer<Message>>,
@@ -92,6 +103,8 @@ impl<Message> WidgetContainer<Message> {
         container_type: ContainerType,
     ) -> Self {
         Self {
+            id: 0,
+            widget_count: 0,
             buttons: Vec::new(),
             labels: Vec::new(),
             containers: Vec::new(),
@@ -138,7 +151,7 @@ impl<Message> WidgetContainer<Message> {
         padding_x: u16,
         padding_y: u16,
         message: Message
-    ) {
+    ) -> &mut Button<Message> {
         let padding_x: i16 = padding_x as i16;
         let padding_y: i16 = padding_y as i16;
         let width = text.len() as i16 * 8 + padding_x;
@@ -162,12 +175,14 @@ impl<Message> WidgetContainer<Message> {
             Point {x, y: y + height},
             Point {x, y},
         ];
-        // Update the next button coordinates
         self.buttons.push(Button {
+            id: 0,
             text: text.to_string(),
             points,
+            hover: false,
             message
         });
+        self.buttons.iter_mut().last().unwrap()
     }
 
     pub fn create_label(&mut self, text: &str) {
@@ -182,18 +197,19 @@ impl<Message> WidgetContainer<Message> {
         }
         (x, y) = self.get_button_endpoint(x, y);
         (x, y) = self.get_label_endpoint(x, y);
-        self.labels.push(Label::new(text, x, y));
+
+        self.labels.push(Label::new(0, text, x, y));
     }
 
-    pub fn is_widget_interacted(&self, event_x: i16, event_y: i16) -> Option<&Message> {
+    pub fn is_widget_interacted(&self, event_x: i16, event_y: i16) -> Option<&Button<Message>> {
         for container in &self.containers {
-            if let Some(message) = container.is_widget_interacted(event_x, event_y) {
-                return Some(message);
+            if let Some(button) = container.is_widget_interacted(event_x, event_y) {
+                return Some(button);
             }
         }
         for button in &self.buttons {
             if button.is_button_interacted(event_x, event_y) {
-                return Some(&button.message);
+                return Some(&button);
             }
         }
 
@@ -286,11 +302,6 @@ impl<Message> WidgetContainer<Message> {
         }
         (x, y)
     }
-    
-    fn get_widget_count(&self) -> i16 {
-        (self.buttons.len() + self.labels.len()) as i16
-    }
-
 }
 
 pub trait Elm {
@@ -312,9 +323,9 @@ pub enum Color {
 }
 
 struct GraphicalContexts {
-    dark_gc: Gcontext,
-    foreground_light_gc: Gcontext,
-    foreground_dark_gc: Gcontext
+    background_gc: Gcontext,
+    foreground_default_gc: Gcontext,
+    foreground_highlighted_gc: Gcontext
 }
 
 pub fn init<Application: Elm>(
@@ -380,33 +391,58 @@ pub fn init<Application: Elm>(
         window_id,
     );
     let mut container = application.view();
+    generate_ids_for_widgets(&mut container);
     let font_id = window.connection.generate_id()?;
     window.connection.open_font(font_id, b"fixed")?;
-    let gc_values = GraphicalContexts {
-        dark_gc: new_gc(&window, window.screen_number, font_id, Color::Dark, Color::Dark)?,
-        foreground_light_gc: new_gc(&window, window.screen_number, font_id, Color::Light, Color::Dark)?,
-        foreground_dark_gc: new_gc(&window, window.screen_number, font_id, Color::Dark, Color::Light)?
+    let gc_values = match background_color {
+        Color::Light => {
+            GraphicalContexts {
+                background_gc: new_gc(&window, window.screen_number, font_id, Color::Dark, Color::Dark)?,
+                foreground_default_gc: new_gc(&window, window.screen_number, font_id, Color::Light, Color::Dark)?,
+                foreground_highlighted_gc: new_gc(&window, window.screen_number, font_id, Color::Dark, Color::Light)?
+            }
+        }
+        Color::Dark => {
+            GraphicalContexts {
+                background_gc: new_gc(&window, window.screen_number, font_id, Color::Light, Color::Light)?,
+                foreground_default_gc: new_gc(&window, window.screen_number, font_id, Color::Dark, Color::Light)?,
+                foreground_highlighted_gc: new_gc(&window, window.screen_number, font_id, Color::Light, Color::Dark)?
+            }
+        }
     };
+    let mut button_hovered_id = 0;
     // Main event loop
-
     loop {
         let event = window.connection.wait_for_event()?;
         let mut redraw = false;
+        let mut update = false;
         match event {
             Event::Expose(_) => {
                 redraw = true;
             }
-            Event::KeyPress(_) => {
+            Event::KeyPress(event) => {
+            }
+            Event::MotionNotify(event) => {
+                if let Some(button) = container.is_widget_interacted(event.event_x, event.event_y) {
+                    if button.id != button_hovered_id {
+                        button_hovered_id = button.id;
+                        redraw = true;
+                    }
+                } else {
+                    if button_hovered_id != 0 {
+                        button_hovered_id = 0;
+                        redraw = true;
+                    }
+                }
             }
             Event::ButtonPress(event) => {
-                
                 match event.detail {
                     1 => {
-                        redraw = true;
-                        if let Some(message) = container.is_widget_interacted(event.event_x, event.event_y) {
-                            if application.update(message) {
+                        if let Some(button) = container.is_widget_interacted(event.event_x, event.event_y) {
+                            if application.update(&button.message) {
                                 window.connection.clear_area(false, window.window_id, 0, 0, width, height)?;
                             }
+                            update = true;
                         }
                     }
                     3 => {
@@ -429,16 +465,21 @@ pub fn init<Application: Elm>(
             }
             _ => {}
         }
-        // Do updated rendering here
-        if redraw {
+        if update {
             container = application.view();
-            draw_widgets(&mut window, &gc_values, &container)?;
+            generate_ids_for_widgets(&mut container);
+            draw_widgets(&mut window, &gc_values, &container, button_hovered_id)?;
+            window.connection.flush()?;
+            update = false;
+        }
+        if redraw {
+            draw_widgets(&mut window, &gc_values, &container, button_hovered_id)?;
             window.connection.flush()?;
         }
     }
-    window.connection.free_gc(gc_values.dark_gc)?;
-    window.connection.free_gc(gc_values.foreground_light_gc)?;
-    window.connection.free_gc(gc_values.foreground_dark_gc)?;
+    window.connection.free_gc(gc_values.background_gc)?;
+    window.connection.free_gc(gc_values.foreground_highlighted_gc)?;
+    window.connection.free_gc(gc_values.foreground_default_gc)?;
     window.connection.close_font(font_id)?;
 }
 
@@ -446,36 +487,62 @@ pub fn init<Application: Elm>(
 fn draw_widgets<C: Connection, Message>(
     window: &mut XWindow<C>,
     gc_values: &GraphicalContexts,
-    parent_container: &WidgetContainer<Message>
+    parent_container: &WidgetContainer<Message>,
+    button_hovered_id: u128
 ) -> Result<(), Box<dyn Error>> {
     for container in &parent_container.containers {
-        draw_widgets(window, gc_values, container)?;
+        draw_widgets(window, gc_values, container, button_hovered_id)?;
     }
     let buttons = &parent_container.buttons;
     
     for button in buttons {
-        window.connection.poly_line(CoordMode::ORIGIN, window.window_id, gc_values.dark_gc, &button.points)?;
-        window.connection.fill_poly(
-            window.window_id,
-            gc_values.dark_gc,
-            PolyShape::CONVEX,
-            CoordMode::ORIGIN,
-            &button.points
-        )?;
-        window.connection.image_text8(
-            window.window_id,
-            gc_values.foreground_light_gc,
-            button.points[0].x + (button.points[2].x - button.points[0].x) / 2 - button.text.len() as i16 * 3,
-            button.points[0].y - (button.points[0].y - button.points[2].y) / 2 + 3,  
-            button.text.as_bytes()
-        )?;
+        if button.id == button_hovered_id && button.hover {
+            // Button is hovered
+            window.connection.poly_line(
+                CoordMode::ORIGIN,
+                window.window_id,
+                gc_values.foreground_highlighted_gc,
+                &button.points
+            )?;
+            window.connection.fill_poly(
+                window.window_id,
+                gc_values.foreground_default_gc,
+                PolyShape::CONVEX,
+                CoordMode::ORIGIN,
+                &button.points
+            )?;
+            window.connection.image_text8(
+                window.window_id,
+                gc_values.foreground_highlighted_gc,
+                button.points[0].x + (button.points[2].x - button.points[0].x) / 2 - button.text.len() as i16 * 3,
+                button.points[0].y - (button.points[0].y - button.points[2].y) / 2 + 3,  
+                button.text.as_bytes()
+            )?;
+        } else {
+            // Default
+            window.connection.poly_line(CoordMode::ORIGIN, window.window_id, gc_values.background_gc, &button.points)?;
+            window.connection.fill_poly(
+                window.window_id,
+                gc_values.background_gc,
+                PolyShape::CONVEX,
+                CoordMode::ORIGIN,
+                &button.points
+            )?;
+            window.connection.image_text8(
+                window.window_id,
+                gc_values.foreground_default_gc,
+                button.points[0].x + (button.points[2].x - button.points[0].x) / 2 - button.text.len() as i16 * 3,
+                button.points[0].y - (button.points[0].y - button.points[2].y) / 2 + 3,  
+                button.text.as_bytes()
+            )?;
+        }
     }
     let labels = &parent_container.labels;
 
     for label in labels {
         window.connection.image_text8(
             window.window_id,
-            gc_values.foreground_dark_gc,
+            gc_values.foreground_highlighted_gc,
             label.begin_x,
             label.begin_y + 15,
             label.text.as_bytes()
@@ -508,4 +575,39 @@ pub fn new_gc<C: Connection>(
         .font(font_id);
     window.connection.create_gc(gc_id, window.window_id, &gc_values)?;
     Ok(gc_id)
+}
+
+fn create_uuid() -> std::io::Result<u128> {
+    use std::fs::File;
+    use std::io::Read;
+    let mut file = File::open("/dev/urandom")?;
+    let mut bytes = [0u8; 16];
+    file.read_exact(&mut bytes)?;
+    let mut uuid = u128::from_be_bytes(bytes);
+
+    uuid &= !(0xF000_0000_0000_0000u128);
+    uuid |= 0x4000_0000_0000_0000u128;
+    
+    uuid &= !(0xC000_0000_0000_0000u128);
+    uuid |= 0x8000_0000_0000_0000u128;
+    Ok(uuid)
+}
+
+fn generate_ids_for_widgets<Message>(container: &mut WidgetContainer<Message>) -> std::io::Result<()> {
+    for child in &mut container.containers {
+        generate_ids_for_widgets(child)?;
+        let uuid = create_uuid()?;
+        container.id = uuid;
+    }
+
+    for button in &mut container.buttons {
+        let uuid = create_uuid()?;
+        button.id = uuid;
+    }
+
+    for label in &mut container.labels {
+        let uuid = create_uuid()?;
+        label.id = uuid;
+    }
+    Ok(())
 }

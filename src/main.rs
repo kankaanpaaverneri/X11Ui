@@ -89,28 +89,28 @@ fn calculator(app: &Application) -> WidgetContainer<UserMessage> {
     let mut root_container = WidgetContainer::new(X, Y, 10, 10, ContainerType::Vertical);
     root_container.create_label(&app.label);
     let row1 = root_container.create_container(2, 10, ContainerType::Horizontal);
-    row1.create_button("C", 110, 4, UserMessage::Clear);
-    row1.create_button("%", 50, 4, UserMessage::Precent);
-    row1.create_button("/", 50, 4, UserMessage::Divide);
+    row1.create_button("C", 310, 40, UserMessage::Clear).hover();
+    row1.create_button("%", 150, 40, UserMessage::Precent).hover();
+    row1.create_button("/", 150, 40, UserMessage::Divide).hover();
     let row2 = root_container.create_container(2, 10, ContainerType::Horizontal);
-    row2.create_button("7", 50, 4, UserMessage::Seven);
-    row2.create_button("8", 50, 4, UserMessage::Eight);
-    row2.create_button("9", 50, 4, UserMessage::Nine);
-    row2.create_button("x", 50, 4, UserMessage::Multiply);
+    row2.create_button("7", 150, 40, UserMessage::Seven).hover();
+    row2.create_button("8", 150, 40, UserMessage::Eight).hover();
+    row2.create_button("9", 150, 40, UserMessage::Nine).hover();
+    row2.create_button("x", 150, 40, UserMessage::Multiply).hover();
     let row3 = root_container.create_container(2, 10, ContainerType::Horizontal);
-    row3.create_button("4", 50, 4, UserMessage::Four);
-    row3.create_button("5", 50, 4, UserMessage::Five);
-    row3.create_button("6", 50, 4, UserMessage::Six);
-    row3.create_button("-", 50, 4, UserMessage::Minus);
+    row3.create_button("4", 150, 40, UserMessage::Four).hover();
+    row3.create_button("5", 150, 40, UserMessage::Five).hover();
+    row3.create_button("6", 150, 40, UserMessage::Six).hover();
+    row3.create_button("-", 150, 40, UserMessage::Minus).hover();
     let row4 = root_container.create_container(2, 10, ContainerType::Horizontal);
-    row4.create_button("1", 50, 4, UserMessage::One);
-    row4.create_button("2", 50, 4, UserMessage::Two);
-    row4.create_button( "3", 50, 4, UserMessage::Three);
-    row4.create_button("+", 50, 4, UserMessage::Plus);
+    row4.create_button("1", 150, 40, UserMessage::One).hover();
+    row4.create_button("2", 150, 40, UserMessage::Two).hover();
+    row4.create_button( "3", 150, 40, UserMessage::Three).hover();
+    row4.create_button("+", 150, 40, UserMessage::Plus).hover();
     let row5 = root_container.create_container(2, 10, ContainerType::Horizontal);
-    row5.create_button("0", 110, 4, UserMessage::Zero);
-    row5.create_button(".", 50, 4, UserMessage::Dot);
-    row5.create_button("=", 50, 4, UserMessage::Equals);
+    row5.create_button("0", 310, 40, UserMessage::Zero).hover();
+    row5.create_button(".", 150, 40, UserMessage::Dot).hover();
+    row5.create_button("=", 150, 40, UserMessage::Equals).hover();
     root_container
 }
 
@@ -120,7 +120,7 @@ fn example3() -> WidgetContainer<UserMessage> {
     root_container.create_button("Root2", 50, 1, UserMessage::One);
     let child0 = root_container.create_container(2, 20, ContainerType::Vertical);
         let child1 = root_container.create_container(2, 20, ContainerType::Vertical);
-        child1.create_button("Child1", 50, 4, UserMessage::Two);
+        child1.create_button("Child1", 50, 4, UserMessage::Two).hover();
         child1.create_button("Child1", 50, 4, UserMessage::Two);
             let child2 = child1.create_container(5, 10, ContainerType::Horizontal);
             child2.create_button("Child2", 50, 4, UserMessage::Three);
@@ -167,8 +167,8 @@ impl Elm for Application {
     fn view(&self) -> WidgetContainer<Self::Message> {
         //example1()
         //example2()
-        //calculator(self)
-        example3()
+        calculator(self)
+        //example3()
         //example4(self)
     }
     fn update(&mut self, message: &Self::Message) -> bool {
