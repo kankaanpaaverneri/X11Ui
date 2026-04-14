@@ -9,7 +9,8 @@ pub struct XWindow<C: Connection> {
     screen_number: usize,
     window_id: Window,
     font_id: Font,
-    background_color: Color
+    background_color: Color,
+    foreground_color: Color 
 }
 
 impl<C: Connection> XWindow<C>
@@ -18,17 +19,21 @@ impl<C: Connection> XWindow<C>
         connection: C,
         screen_number: usize,
         window_id: Window,
-        background_color: Color
+        background_color: Color, 
+        foreground_color: Color 
     ) -> Self {
         Self {
             connection,
             screen_number,
             window_id,
             font_id: 0,
-            background_color
+            background_color,
+            foreground_color
         }
     }
 }
+
+
 
 #[derive(Debug, Clone)]
 pub enum ContainerType {
@@ -36,8 +41,6 @@ pub enum ContainerType {
     Horizontal,
 }
 
-pub enum ButtonStyle {
-}
 
 pub struct Button<Message> {
     id: u128,
@@ -45,8 +48,10 @@ pub struct Button<Message> {
     points: [Point; 5],
     message: Message,
     hover: bool,
-    foreground_color: Option<u32>,
-    background_color: Option<u32>
+    foreground_color: Option<Color>,
+    background_color: Option<Color>,
+    border: u32,
+    border_color: Option<Color> 
 }
 
 impl<Message> Button<Message> {
@@ -66,233 +71,87 @@ impl<Message> Button<Message> {
         self
     }
     
-    pub fn set_background_color(&mut self, color: u32) -> &mut Button<Message> {
+    pub fn set_background_color(&mut self, color: Color) -> &mut Button<Message> {
         self.background_color = Some(color);
         self
     }
 
-    pub fn set_foreground_color(&mut self, color: u32) -> &mut Button<Message> {
+    pub fn set_foreground_color(&mut self, color: Color) -> &mut Button<Message> {
         self.foreground_color = Some(color);
         self
     }
-
-    fn highlight_colored_button<C: Connection>(
-        &self,
-        window: &XWindow<C>,
-        foreground_color: u32
-    ) -> Result<(), Box<dyn Error>> {
-        let background_color = match window.background_color {
-            Color::Light => 0xffffff,
-            Color::Dark => 0x0
-        };
-        let gc = new_color_gc(
-            window,
-            window.screen_number,
-            window.font_id,
-            background_color,
-            foreground_color
-        )?;
-        
-        window.connection.poly_line(
-            CoordMode::ORIGIN,
-            window.window_id,
-            gc,
-            &self.points
-        )?;
-        window.connection.fill_poly(
-            window.window_id,
-            gc,
-            PolyShape::CONVEX,
-            CoordMode::ORIGIN,
-            &self.points
-        )?;
-        let text_gc = new_color_gc(
-            window,
-            window.screen_number,
-            window.font_id,
-            foreground_color,
-            background_color
-        )?;
-        window.connection.image_text8(
-            window.window_id,
-            text_gc,
-            self.points[0].x + (self.points[2].x - self.points[0].x) / 2 - self.text.len() as i16 * 3,
-            self.points[0].y - (self.points[0].y - self.points[2].y) / 2 + 3,  
-            self.text.as_bytes()
-        )?;
-        Ok(())
+    
+    pub fn set_border(&mut self, border_size: u32) -> &mut Button<Message> {
+        self.border = border_size;
+        self
     }
 
-    fn highlight_default_button<C: Connection>(
-        &self,
-        window: &XWindow<C>,
-        gc_values: &GraphicalContexts
-    ) -> Result<(), Box<dyn Error>> {
-        window.connection.poly_line(
-            CoordMode::ORIGIN,
-            window.window_id,
-            gc_values.foreground_default_gc,
-            &self.points
-        )?;
-        window.connection.fill_poly(
-            window.window_id,
-            gc_values.foreground_default_gc,
-            PolyShape::CONVEX,
-            CoordMode::ORIGIN,
-            &self.points
-        )?;
-        window.connection.image_text8(
-            window.window_id,
-            gc_values.foreground_highlighted_gc,
-            self.points[0].x + (self.points[2].x - self.points[0].x) / 2 - self.text.len() as i16 * 3,
-            self.points[0].y - (self.points[0].y - self.points[2].y) / 2 + 3,  
-            self.text.as_bytes()
-        )?;
-        Ok(())
+    pub fn set_border_color(&mut self, border_color: Color) -> &mut Button<Message> {
+        self.border_color = Some(border_color);
+        self
     }
 
-    fn apply_default_button_color<C: Connection>(
-        &self,
-        window: &XWindow<C>,
-        gc_values: &GraphicalContexts
-    ) -> Result<(), Box<dyn Error>> {
-        window.connection.poly_line(
-            CoordMode::ORIGIN,
-            window.window_id,
-            gc_values.background_gc,
-            &self.points
-        )?;
-        // No background
-        window.connection.fill_poly(
-            window.window_id,
-            gc_values.background_gc,
-            PolyShape::CONVEX,
-            CoordMode::ORIGIN,
-            &self.points
-        )?;
-        window.connection.image_text8(
-            window.window_id,
-            gc_values.foreground_default_gc, // prev foreground_default_gc
-            self.points[0].x + (self.points[2].x - self.points[0].x) / 2 - self.text.len() as i16 * 3,
-            self.points[0].y - (self.points[0].y - self.points[2].y) / 2 + 3,  
-            self.text.as_bytes()
-        )?;
-        /*
-        window.connection.image_text8(
-            window.window_id,
-            gc_values.foreground_highlighted_gc, 
-            self.points[0].x + (self.points[2].x - self.points[0].x) / 2 - self.text.len() as i16 * 3,
-            self.points[0].y - (self.points[0].y - self.points[2].y) / 2 + 3,  
-            self.text.as_bytes()
-        )?;
-        */
-        Ok(())
-    }
 
-    fn apply_button_background_color<C: Connection>(
+    fn draw_button<C: Connection>(
         &self,
         window: &XWindow<C>,
-        background_color: u32
+        button_background_gc: Gcontext,
+        button_foreground_gc: Gcontext,
+        border_gc: Option<Gcontext>,
+        border: u32
     ) -> Result<(), Box<dyn Error>> {
-        let gc = new_color_gc(
-            window,
-            window.screen_number,
-            window.font_id,
-            background_color,
-            background_color 
-        )?;
-        window.connection.poly_line(
-            CoordMode::ORIGIN,
-            window.window_id,
-            gc,
-            &self.points
-        )?;
-        window.connection.fill_poly(
-            window.window_id,
-            gc,
-            PolyShape::CONVEX,
-            CoordMode::ORIGIN,
-            &self.points
-        )?;
-        let foreground_color = match window.background_color {
-            Color::Light => 0xffffff,
-            Color::Dark => 0x0
-        };
-        let text_gc = new_color_gc(
-            window,
-            window.screen_number,
-            window.font_id,
-            foreground_color,
-            background_color
-        )?;
-        window.connection.image_text8(
-            window.window_id,
-            text_gc,
-            self.points[0].x + (self.points[2].x - self.points[0].x) / 2 - self.text.len() as i16 * 3,
-            self.points[0].y - (self.points[0].y - self.points[2].y) / 2 + 3,  
-            self.text.as_bytes()
-        )?;
-        Ok(())
-    }
-
-    fn apply_button_foreground_color<C: Connection>(
-        &self,
-        window: &XWindow<C>,
-        foreground_color: u32
-    ) -> Result<(), Box<dyn Error>> {
-        let background_color = if let None = self.background_color {
-            match window.background_color {
-                Color::Light => 0x0,
-                Color::Dark => 0xffffff
+        if border > 0 {
+            if let Some(border_gc) = border_gc {
+                window.connection.poly_line(
+                    CoordMode::ORIGIN,
+                    window.window_id,
+                    border_gc,
+                    &self.points
+                )?;
             }
         } else {
-            self.background_color.unwrap()
-        };
-        
-        let gc = new_color_gc(
-            window,
-            window.screen_number,
-            window.font_id,
-            background_color,
-            foreground_color
-        )?;
-        window.connection.poly_line(
-            CoordMode::ORIGIN,
-            window.window_id,
-            gc,
-            &self.points
-        )?;
+            window.connection.poly_line(
+                CoordMode::ORIGIN,
+                window.window_id,
+                button_background_gc,
+                &self.points
+            )?;
+        }
         window.connection.fill_poly(
             window.window_id,
-            gc,
+            button_background_gc,
             PolyShape::CONVEX,
             CoordMode::ORIGIN,
             &self.points
         )?;
-        let background_color = if let None = self.background_color {
-            match window.background_color {
-                Color::Light => 0x0,
-                Color::Dark => 0xffffff
-            }
-        } else {
-            self.background_color.unwrap()
-        };
-        let text_gc = new_color_gc(
-            window,
-            window.screen_number,
-            window.font_id,
-            foreground_color,
-            background_color
-        )?;
         window.connection.image_text8(
             window.window_id,
-            text_gc,
+            button_foreground_gc,
             self.points[0].x + (self.points[2].x - self.points[0].x) / 2 - self.text.len() as i16 * 3,
             self.points[0].y - (self.points[0].y - self.points[2].y) / 2 + 3,  
             self.text.as_bytes()
         )?;
         Ok(())
     }
+
+    fn is_background_color_match(&self, background_color: &Color) -> bool {
+        if let Some(button_background_color) = &self.background_color {
+            if *background_color == *button_background_color {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn is_foreground_color_match(&self, foreground_color: &Color) -> bool {
+        if let Some(button_foreground_color) = &self.foreground_color {
+            if *foreground_color == *button_foreground_color {
+                return true;
+            }
+        }
+        false
+    }
+
 }
 
 pub struct Label {
@@ -332,7 +191,8 @@ pub struct WidgetContainer<Message> {
     y: i16,
     widget_spacing_x: i16,
     widget_spacing_y: i16,
-    container_type: ContainerType
+    container_type: ContainerType,
+    background_color: Color
 }
 
 impl<Message> WidgetContainer<Message> {
@@ -342,6 +202,7 @@ impl<Message> WidgetContainer<Message> {
         widget_spacing_x: u16,
         widget_spacing_y: u16,
         container_type: ContainerType,
+        background_color: Color
     ) -> Self {
         Self {
             id: 0,
@@ -354,6 +215,7 @@ impl<Message> WidgetContainer<Message> {
             widget_spacing_x: widget_spacing_x as i16,
             widget_spacing_y: widget_spacing_y as i16,
             container_type,
+            background_color
         }
     }
 
@@ -380,6 +242,7 @@ impl<Message> WidgetContainer<Message> {
             widget_spacing_x,
             widget_spacing_y,
             new_container_type,
+            self.background_color.clone()
         );
 
         self.containers.push(new_container); 
@@ -423,7 +286,9 @@ impl<Message> WidgetContainer<Message> {
             hover: false,
             message,
             foreground_color: None, 
-            background_color: None
+            background_color: None,
+            border: 5,
+            border_color: None
         });
         self.buttons.iter_mut().last().unwrap()
     }
@@ -566,31 +431,170 @@ x11rb::atom_manager! {
         WM_DELETE_WINDOW,
     }
 }
-#[derive(Clone)]
-pub enum Color {
-    Dark,
-    Light
+
+struct GraphicalContextMatrix {
+    gc_ids: [[Gcontext; 10]; 10]
 }
 
-struct GraphicalContexts {
-    background_gc: Gcontext,
-    foreground_default_gc: Gcontext,
-    foreground_highlighted_gc: Gcontext
+impl GraphicalContextMatrix {
+    fn new<C: Connection>(window: &XWindow<C>) -> Result<Self, Box<dyn Error>> {
+        let mut gc_ids = [[0; 10]; 10];
+        for bg in 0..COLORS {
+            for fg in 0..COLORS {
+                let background_color = Color::get(bg);
+                let foreground_color = Color::get(fg);
+                let gc_id = new_gc(window, &background_color, &foreground_color, 0)?;
+                gc_ids[bg][fg] = gc_id;
+            }
+        }
+        Ok(Self {
+            gc_ids
+        })
+    }
+
+    fn get_only_button_background_contexts<C: Connection>(&self, window: &XWindow<C>) -> (Gcontext, Gcontext) {
+        if let Color::Black = window.background_color {
+            let background_gc = self.gc_ids[1][1];
+            let foreground_gc = self.gc_ids[1][0];
+        }
+        for bg in 0..COLORS {
+            for fg in 0..COLORS {
+                let background_color = Color::get(bg);
+                let foreground_color = Color::get(fg);
+                if window.background_color == background_color {
+                    let background_gc = self.gc_ids[fg][fg];
+                    let foreground_gc = self.gc_ids[fg][0];
+                }
+            }
+        }
+        let background_gc = self.gc_ids[1][1];
+        let foreground_gc = self.gc_ids[1][0];
+        return (background_gc, foreground_gc);
+    }
+
+    fn get_default_button_contexts<C: Connection>(&self, window: &XWindow<C>) -> (Gcontext, Gcontext) {
+        if let Color::Black = window.background_color {
+            let background_gc = self.gc_ids[1][1];
+            let foreground_gc = self.gc_ids[1][0];
+            return (background_gc, foreground_gc);
+        }
+        for bg in 0..COLORS {
+            for fg in 0..COLORS {
+                let background_color = Color::get(bg);
+                let foreground_color = Color::get(fg);
+                if window.background_color == background_color {
+                    let background_gc = self.gc_ids[fg][fg];
+                    let foreground_gc = self.gc_ids[fg][1];
+                    return (background_gc, foreground_gc);
+                }
+
+            }
+        }
+        let background_gc = self.gc_ids[1][1];
+        let foreground_gc = self.gc_ids[1][0];
+        return (background_gc, foreground_gc);
+    }
+
+    fn get_default_label_context<C: Connection>(&self, window: &XWindow<C>) -> Gcontext {
+        if let Color::Black = window.background_color {
+            return self.gc_ids[0][1];
+        }
+        for bg in 0..COLORS {
+            for fg in 0..COLORS {
+                let background_color = Color::get(bg);
+                if background_color == window.background_color {
+                    return self.gc_ids[bg][0];
+                }
+            }
+        }
+        self.gc_ids[0][1]
+    }
 }
+
+fn new_gc<C: Connection>(
+    window: &XWindow<C>,
+    background_color: &Color,
+    foreground_color: &Color,
+    border_size: u32,
+) -> Result<Gcontext, Box<dyn Error>> {
+    let gc_id = window.connection.generate_id()?;
+    let gc_values = CreateGCAux::new()
+        .foreground(foreground_color.to_hex())
+        .background(background_color.to_hex())
+        .line_width(border_size)
+        .font(window.font_id);
+    window.connection.create_gc(gc_id, window.window_id, &gc_values)?;
+    Ok(gc_id)
+}
+
+const COLORS: usize = 9; 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Color {
+    Black,
+    White,
+    Red,
+    Green,
+    Blue,
+    Cyan,
+    Yellow,
+    Orange,
+    Purple,
+}
+
+impl Color {
+    fn get(index: usize) -> Color {
+        match index {
+            0 => Color::Black,
+            1 => Color::White,
+            2 => Color::Red,
+            3 => Color::Green,
+            4 => Color::Blue,
+            5 => Color::Cyan,
+            6 => Color::Yellow,
+            7 => Color::Orange,
+            8 => Color::Purple,
+            _ => Color::Black
+        }
+    }
+    fn to_hex(&self) -> u32 {
+        match self {
+            Color::Black => 0x0,
+            Color::White => 0xffffff,
+            Color::Red => 0xff0000,
+            Color::Green => 0x00ff00,
+            Color::Blue => 0x0000ff,
+            Color::Cyan => 0x00ffff,
+            Color::Yellow => 0xffff00,
+            Color::Orange => 0xffa500,
+            Color::Purple => 0x800080,
+        }
+    }
+}
+fn init_window_colors<C: Connection>(connection: &C, screen_number: usize, background_color: Color) -> (Color, Color) {
+    let foreground_color = match background_color {
+        Color::White => Color::Black,
+        Color::Black => Color::White,
+        _ => Color::Black
+    };
+    (background_color, foreground_color)
+}
+
 
 pub fn init<Application: Elm>(
     title: &str,
     width: u16,
     height: u16,
-    background_color: Color,
     mut application: Application 
 ) -> Result<(), Box<dyn Error>> {
+    let mut container = application.view();
+    generate_ids_for_widgets(&mut container);
     let (connection, screen_number) = x11rb::connect(None)?;
+    let (background_color, foreground_color) = init_window_colors(
+        &connection,
+        screen_number,
+        container.background_color.clone()
+    );
     let window_id = connection.generate_id()?;
-    let pixel_color = match background_color {
-        Color::Light => connection.setup().roots[screen_number].white_pixel,
-        Color::Dark => connection.setup().roots[screen_number].black_pixel
-    };
     let window_aux = CreateWindowAux::new()
         .event_mask(
             EventMask::EXPOSURE |
@@ -599,7 +603,7 @@ pub fn init<Application: Elm>(
             EventMask::KEY_PRESS |
             EventMask::POINTER_MOTION
         )
-        .background_pixel(0xffffff);
+        .background_pixel(container.background_color.to_hex());
 
     // Changing window title and enabling window close
     let atoms = Atoms::new(&connection)?.reply()?;
@@ -633,37 +637,23 @@ pub fn init<Application: Elm>(
     )?;
 
 
-    //let pattern = format!("*-{}-*", 12);
-    //let reply = connection.list_fonts(100, pattern.as_bytes())?.reply()?;
     connection.map_window(window_id)?;
     connection.flush()?;
     let mut window = XWindow::new(
         connection,
         screen_number,
         window_id,
-        background_color
+        background_color,
+        foreground_color
     );
-    let mut container = application.view();
-    generate_ids_for_widgets(&mut container);
+
+    // Get default font
     let font_id = window.connection.generate_id()?;
     window.connection.open_font(font_id, b"fixed")?;
     window.font_id = font_id;
-    let gc_values = match window.background_color {
-        Color::Light => {
-            GraphicalContexts {
-                background_gc: new_gc(&window, window.screen_number, font_id, Color::Dark, Color::Dark)?,
-                foreground_default_gc: new_gc(&window, window.screen_number, font_id, Color::Light, Color::Dark)?,
-                foreground_highlighted_gc: new_gc(&window, window.screen_number, font_id, Color::Dark, Color::Light)?,
-            }
-        }
-        Color::Dark => {
-            GraphicalContexts {
-                background_gc: new_gc(&window, window.screen_number, font_id, Color::Light, Color::Light)?,
-                foreground_default_gc: new_gc(&window, window.screen_number, font_id, Color::Dark, Color::Light)?,
-                foreground_highlighted_gc: new_gc(&window, window.screen_number, font_id, Color::Light, Color::Dark)?,
-            }
-        }
-    };
+
+    let default_gc_values = GraphicalContextMatrix::new(&window)?; 
+
     let mut button_hovered_id = 0;
     // Main event loop
     loop {
@@ -722,72 +712,65 @@ pub fn init<Application: Elm>(
         if update {
             container = application.view();
             generate_ids_for_widgets(&mut container);
-            draw_widgets(&mut window, &gc_values, &container, button_hovered_id)?;
+            draw_widgets(&mut window, &default_gc_values, &container, button_hovered_id)?;
             window.connection.flush()?;
             update = false;
         }
         if redraw {
-            draw_widgets(&mut window, &gc_values, &container, button_hovered_id)?;
+            draw_widgets(&mut window, &default_gc_values, &container, button_hovered_id)?;
             window.connection.flush()?;
         }
     }
-    window.connection.free_gc(gc_values.background_gc)?;
-    window.connection.free_gc(gc_values.foreground_highlighted_gc)?;
-    window.connection.free_gc(gc_values.foreground_default_gc)?;
     window.connection.close_font(window.font_id)?;
 }
 
 
 fn draw_widgets<C: Connection, Message>(
     window: &mut XWindow<C>,
-    gc_values: &GraphicalContexts,
+    default_gc_values: &GraphicalContextMatrix,
     parent_container: &WidgetContainer<Message>,
     button_hovered_id: u128,
 ) -> Result<(), Box<dyn Error>> {
     for container in &parent_container.containers {
-        draw_widgets(window, gc_values, container, button_hovered_id)?;
+        draw_widgets(window, default_gc_values, container, button_hovered_id)?;
     }
     let buttons = &parent_container.buttons;
     
     for button in buttons {
         if button.id == button_hovered_id && button.hover {
             // Button is hovered
-            if let None = button.background_color && let None = button.foreground_color {
-                // Highlight default button
-                button.highlight_default_button(window, gc_values)?;
-            } else {
-                // Preserve foreground_color
-                if let Some(_) = button.background_color {
-                    let color = match window.background_color {
-                        Color::Light => 0x0,
-                        Color::Dark => 0xffffff
-                    };
-                    button.highlight_colored_button(window, color)?;
-                }
-                if let Some(foreground_color) = button.foreground_color {
-                    button.highlight_colored_button(window, foreground_color)?;
-                }
-            }
-        } else {
-            // Default
-            if let None = button.background_color && let None = button.foreground_color {
-                
-                button.apply_default_button_color(window, gc_values)?;
-            }
-            if let Some(background_color) = button.background_color {
-                button.apply_button_background_color(window, background_color)?;
-            }
-            if let Some(foreground_color) = button.foreground_color {
-                button.apply_button_foreground_color(window, foreground_color)?;
-            }
+            
         }
+        // Button has no background nor foreground color set
+        if button.background_color.is_none() && button.foreground_color.is_none() {
+            let (default_background_gc, default_foreground_gc) = default_gc_values.get_default_button_contexts(window);
+            button.draw_button(
+                window,
+                default_background_gc,
+                default_foreground_gc,
+                None,
+                button.border
+            )?;
+            continue;
+        }
+        if button.background_color.is_some() && button.foreground_color.is_none() {
+            apply_only_background_color_to_button(window, &button, default_gc_values)?;
+            continue;
+        }
+        if button.foreground_color.is_some() && button.background_color.is_none() {
+            apply_only_foreground_color_to_button(window, &button, default_gc_values)?;
+            continue;
+        }
+            
+        apply_colors_to_button(window, &button, default_gc_values)?;
     }
     let labels = &parent_container.labels;
+    let label_gc = default_gc_values.get_default_label_context(window);
 
     for label in labels {
         window.connection.image_text8(
             window.window_id,
-            gc_values.foreground_highlighted_gc,
+            label_gc,
             label.begin_x,
             label.begin_y + 15,
             label.text.as_bytes()
@@ -796,48 +779,83 @@ fn draw_widgets<C: Connection, Message>(
     Ok(())
 }
 
-
-
-fn new_gc<C: Connection>(
+fn apply_only_background_color_to_button<Message, C: Connection>(
     window: &XWindow<C>,
-    screen_number: usize,
-    font_id: Font,
-    foreground: Color,
-    background: Color
-) -> Result<Gcontext, Box<dyn Error>> {
-    let foreground_color = match foreground {
-        Color::Light => window.connection.setup().roots[screen_number].white_pixel,
-        Color::Dark => window.connection.setup().roots[screen_number].black_pixel
-    };
-    let background_color = match background {
-        Color::Light => window.connection.setup().roots[screen_number].white_pixel,
-        Color::Dark => window.connection.setup().roots[screen_number].black_pixel
-    };
-
-    let gc_id = window.connection.generate_id()?;
-    let gc_values = CreateGCAux::new()
-        .foreground(foreground_color)
-        .background(background_color)
-        .line_width(5)
-        .font(font_id);
-    window.connection.create_gc(gc_id, window.window_id, &gc_values)?;
-    Ok(gc_id)
+    button: &Button<Message>,
+    default_gc_values: &GraphicalContextMatrix
+) -> Result<(), Box<dyn Error>> {
+    for bg in 0..COLORS {
+        for fg in 0..COLORS {
+            let background_color = Color::get(bg);
+            if button.is_background_color_match(&background_color) {
+                let background_gc = default_gc_values.gc_ids[bg][bg];
+                let foreground_gc = if window.background_color == Color::Black {
+                    default_gc_values.gc_ids[bg][0]
+                } else {
+                    default_gc_values.gc_ids[bg][1]
+                };
+                button.draw_button(window, background_gc, foreground_gc, None, button.border)?;
+                return Ok(());
+            }
+        }
+    }
+    Ok(())
 }
 
-fn new_color_gc<C: Connection>(
+fn apply_only_foreground_color_to_button<Message, C: Connection>(
     window: &XWindow<C>,
-    screen_number: usize,
-    font_id: Font,
-    foreground_color: u32,
-    background_color: u32
-) -> Result<Gcontext, Box<dyn Error>> {
-    let gc_id = window.connection.generate_id()?;
-    let gc_values = CreateGCAux::new()
-        .foreground(foreground_color)
-        .background(background_color)
-        .font(font_id);
-    window.connection.create_gc(gc_id, window.window_id, &gc_values)?;
-    Ok(gc_id)
+    button: &Button<Message>,
+    default_gc_values: &GraphicalContextMatrix
+) -> Result<(), Box<dyn Error>> {
+    for bg in 0..COLORS {
+        for fg in 0..COLORS {
+            let foreground_color = Color::get(fg);
+            if button.is_foreground_color_match(&foreground_color) {
+                let (background_gc, foreground_gc) = if window.background_color == Color::Black {
+                    (default_gc_values.gc_ids[1][1], default_gc_values.gc_ids[1][fg])
+                } else {
+                    let foreground_gc = default_gc_values.gc_ids[0][fg];
+                    let background_gc = default_gc_values.gc_ids[0][0];
+                    (background_gc, foreground_gc)
+                };
+                button.draw_button(window, background_gc, foreground_gc, None, button.border)?;
+                return Ok(());
+            }
+        }
+    }
+    Ok(())
+}
+
+fn apply_colors_to_button<Message, C: Connection>(
+    window: &XWindow<C>,
+    button: &Button<Message>,
+    default_gc_values: &GraphicalContextMatrix
+) -> Result<(), Box<dyn Error>> {
+    let (default_background_gc, default_foreground_gc) = default_gc_values.get_default_button_contexts(window);
+    let mut background_gc = default_background_gc;
+    let mut foreground_gc = default_background_gc;
+    for bg in 0..COLORS {
+        for fg in 0..COLORS {
+            let background_color = Color::get(bg);
+            let foreground_color = Color::get(fg);
+            let mut background_found = false;
+            let mut foreground_found = false;
+            if button.is_background_color_match(&background_color) {
+                background_gc = default_gc_values.gc_ids[bg][bg];
+                background_found = true;
+            }
+            if button.is_foreground_color_match(&foreground_color) {
+                foreground_gc = default_gc_values.gc_ids[bg][fg];
+                foreground_found = true;
+            } 
+            if background_found && foreground_found {
+                button.draw_button(window, background_gc, foreground_gc, None, button.border)?;
+                return Ok(());
+            }
+        }
+    }
+    button.draw_button(window, background_gc, foreground_gc, None, button.border)?;
+    Ok(())
 }
 
 fn create_uuid() -> std::io::Result<u128> {
@@ -857,10 +875,10 @@ fn create_uuid() -> std::io::Result<u128> {
 }
 
 fn generate_ids_for_widgets<Message>(container: &mut WidgetContainer<Message>) -> std::io::Result<()> {
+    let uuid = create_uuid()?;
+    container.id = uuid;
     for child in &mut container.containers {
         generate_ids_for_widgets(child)?;
-        let uuid = create_uuid()?;
-        container.id = uuid;
     }
 
     for button in &mut container.buttons {

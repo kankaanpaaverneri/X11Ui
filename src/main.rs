@@ -1,8 +1,8 @@
 use x11ui::{
     Elm,
     WidgetContainer,
-    Color,
-    ContainerType
+    ContainerType,
+    Color
 };
 use std::error::Error;
 
@@ -50,7 +50,7 @@ const X: i16 = 100;
 const Y: i16 = 100;
 
 fn example1() -> WidgetContainer<UserMessage> {
-    let mut root_container = WidgetContainer::new(X, Y, 60, 10, ContainerType::Horizontal);
+    let mut root_container = WidgetContainer::new(X, Y, 60, 10, ContainerType::Horizontal, Color::Cyan);
     root_container.create_button("Root", 10, 5, UserMessage::Precent);
     root_container.create_button("Root", 10, 5, UserMessage::Precent);
     root_container.create_button("Root", 10, 5, UserMessage::Precent);
@@ -69,7 +69,7 @@ fn example1() -> WidgetContainer<UserMessage> {
 }
 
 fn example2() -> WidgetContainer<UserMessage> {
-    let mut root_container = WidgetContainer::new(X, Y, 20, 60, ContainerType::Horizontal);
+    let mut root_container = WidgetContainer::new(X, Y, 20, 60, ContainerType::Horizontal, Color::White);
     root_container.create_button("Root", 10, 20, UserMessage::Precent);
     root_container.create_button("Root", 10, 20, UserMessage::Precent);
     root_container.create_button("Root", 10, 20, UserMessage::Precent);
@@ -86,23 +86,25 @@ fn example2() -> WidgetContainer<UserMessage> {
 }
 
 fn calculator(app: &Application) -> WidgetContainer<UserMessage> {
-    let mut root_container = WidgetContainer::new(X, Y, 10, 50, ContainerType::Vertical);
+    let mut root_container = WidgetContainer::new(X, Y, 10, 50, ContainerType::Vertical, Color::Orange);
     let row0 = root_container.create_container(15, 10, ContainerType::Horizontal);
     row0.create_label(&app.label);
     let buttons_container = root_container.create_container(15, 10, ContainerType::Vertical);
     let row1 = buttons_container.create_container(15, 10, ContainerType::Horizontal);
     row1.create_button("C", 323, 40, UserMessage::Clear)
-        .hover()
-        .set_background_color(0xff0000)
-        .set_foreground_color(0x0000ff);
+        .set_background_color(Color::Cyan)
+        .set_border(5)
+        .set_border_color(Color::Orange)
+        .hover();
+
     row1.create_button("%", 150, 40, UserMessage::Precent)
         .hover()
-        .set_background_color(0x0000ff)
-        .set_foreground_color(0x00ff00);
-    row1.create_button("/", 150, 40, UserMessage::Divide).hover();
+        .set_background_color(Color::Yellow)
+        .set_foreground_color(Color::Green);
+    row1.create_button("/", 150, 40, UserMessage::Divide).set_foreground_color(Color::Red).set_border(10).hover();
     let row2 = buttons_container.create_container(15, 10, ContainerType::Horizontal);
-    row2.create_button("7", 150, 40, UserMessage::Seven).hover().set_background_color(0xb686d9);
-    row2.create_button("8", 150, 40, UserMessage::Eight).hover();
+    row2.create_button("7", 150, 40, UserMessage::Seven).hover().set_background_color(Color::Purple);
+    row2.create_button("8", 150, 40, UserMessage::Eight).hover().set_border(5).set_border_color(Color::Purple);
     row2.create_button("9", 150, 40, UserMessage::Nine).hover();
     row2.create_button("x", 150, 40, UserMessage::Multiply).hover();
     let row3 = buttons_container.create_container(15, 10, ContainerType::Horizontal);
@@ -113,25 +115,28 @@ fn calculator(app: &Application) -> WidgetContainer<UserMessage> {
     let row4 = buttons_container.create_container(15, 10, ContainerType::Horizontal);
     row4.create_button("1", 150, 40, UserMessage::One).hover();
     row4.create_button("2", 150, 40, UserMessage::Two).hover();
-    row4.create_button( "3", 150, 40, UserMessage::Three).hover();
+    row4.create_button("3", 150, 40, UserMessage::Three).hover();
     row4.create_button("+", 150, 40, UserMessage::Plus).hover();
     let row5 = buttons_container.create_container(15, 10, ContainerType::Horizontal);
     row5.create_button("0", 323, 40, UserMessage::Zero).hover();
     row5.create_button(".", 150, 40, UserMessage::Dot).hover();
-    row5.create_button("=", 150, 40, UserMessage::Equals).hover().set_background_color(0x0000ff);
+    row5.create_button("=", 150, 40, UserMessage::Equals)
+        .hover()
+        .set_background_color(Color::Blue)
+        .set_foreground_color(Color::White);
     root_container
 }
 
 fn example3() -> WidgetContainer<UserMessage> {
-    let mut root_container = WidgetContainer::new(X, Y, 10, 10, ContainerType::Vertical);
+    let mut root_container = WidgetContainer::new(X, Y, 10, 10, ContainerType::Vertical, Color::Green);
     root_container.create_button("Root1", 50, 1, UserMessage::One);
     root_container.create_button("Root2", 50, 1, UserMessage::One).hover();
     let child0 = root_container.create_container(2, 20, ContainerType::Vertical);
         let child1 = root_container.create_container(2, 20, ContainerType::Vertical);
         child1.create_button("Child1", 50, 4, UserMessage::Two)
             .hover()
-            .set_foreground_color(0xff0000)
-            .set_background_color(0x0000ff);
+            .set_foreground_color(Color::Red)
+            .set_background_color(Color::Cyan);
         child1.create_button("Child1", 50, 4, UserMessage::Two);
             let child2 = child1.create_container(5, 10, ContainerType::Horizontal).padding(50);
             child2.create_button("Child2", 50, 4, UserMessage::Three);
@@ -163,9 +168,13 @@ fn example3() -> WidgetContainer<UserMessage> {
 }
 
 fn example4(app: &Application) -> WidgetContainer<UserMessage> {
-    let mut root_container = WidgetContainer::new(X, Y, 10, 10, ContainerType::Vertical);
-    root_container.create_button("Change Layout", 50, 5, UserMessage::ChangeLayout)
+    let mut root_container = WidgetContainer::new(X, Y, 10, 10, ContainerType::Vertical, Color::White);
+    root_container.create_button("Colored", 50, 5, UserMessage::ChangeLayout)
+        //.set_background_color(Color::Green)
+        //.set_foreground_color(Color::Orange)
         .hover();
+    root_container.create_button("Change Layout", 50, 5, UserMessage::One)
+        .set_border(5);
     let child1 = root_container.create_container(20, 10, ContainerType::Vertical).padding(20);
     if app.change {
         for i in 1..11 {
@@ -181,9 +190,9 @@ impl Elm for Application {
     fn view(&self) -> WidgetContainer<Self::Message> {
         //example1()
         //example2()
-        //calculator(self)
+        calculator(self)
         //example3()
-        example4(self)
+        //example4(self)
     }
     fn update(&mut self, message: &Self::Message) -> bool {
         match message {
@@ -228,6 +237,6 @@ impl Elm for Application {
 
 
 fn main() -> Result<(), Box<dyn Error>> {
-    x11ui::init("X11 Ui", 800, 600, Color::Dark, Application::default())?;
+    x11ui::init("X11 Ui", 800, 600, Application::default())?;
     Ok(())
 }
